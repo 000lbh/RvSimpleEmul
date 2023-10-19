@@ -157,12 +157,12 @@ uint64_t imulh(uint64_t s1, uint64_t s2) {
 #ifdef __GNUC__
 uint64_t imull(uint64_t s1, uint64_t s2) {
     __int128_t result = s1;
-    result = s1 * s2;
+    result *= s2;
     return result;
 }
 uint64_t imulh(uint64_t s1, uint64_t s2) {
     __int128_t result = s1;
-    result = s1 * s2;
+    result *= s2;
     return result >> 64;
 }
 #endif
@@ -538,12 +538,12 @@ std::unordered_map<uint8_t, std::unordered_map<uint8_t, std::string>> RvSBInstNa
 
 std::unordered_map<uint8_t, std::unordered_map<uint8_t, std::function<void(int64_t, int64_t, int64_t, uint64_t)>>> RvSBInstExecDict{
     { 0x63, {
-        { 0x00, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (s1 == s2) throw RvCtrlFlowJmp(pc + imm); } },
-        { 0x01, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (s1 != s2) throw RvCtrlFlowJmp(pc + imm); } },
-        { 0x04, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (s1 < s2) throw RvCtrlFlowJmp(pc + imm); } },
-        { 0x05, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (s1 >= s2) throw RvCtrlFlowJmp(pc + imm); } },
-        { 0x06, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (std::bit_cast<uint64_t>(s1) < std::bit_cast<uint64_t>(s2)) throw RvCtrlFlowJmp(pc + imm); } },
-        { 0x07, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (std::bit_cast<uint64_t>(s1) >= std::bit_cast<uint64_t>(s2)) throw RvCtrlFlowJmp(pc + imm); } }
+        { 0x00, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (s1 == s2) throw RvCtrlFlowJmp{pc + imm}; } },
+        { 0x01, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (s1 != s2) throw RvCtrlFlowJmp{pc + imm}; } },
+        { 0x04, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (s1 < s2) throw RvCtrlFlowJmp{pc + imm}; } },
+        { 0x05, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (s1 >= s2) throw RvCtrlFlowJmp{pc + imm}; } },
+        { 0x06, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (std::bit_cast<uint64_t>(s1) < std::bit_cast<uint64_t>(s2)) throw RvCtrlFlowJmp{pc + imm}; } },
+        { 0x07, [](int64_t s1, int64_t s2, int64_t imm, uint64_t pc) {if (std::bit_cast<uint64_t>(s1) >= std::bit_cast<uint64_t>(s2)) throw RvCtrlFlowJmp{pc + imm}; } }
     } }
 };
 
