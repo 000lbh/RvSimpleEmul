@@ -49,6 +49,7 @@ public:
     RvBaseCpu(RvMem &mem, const RvReg &reg);
     virtual bool add_breakpoint(uint64_t addr);
     virtual std::vector<uint64_t> get_breakpoint();
+    bool find_breakpoint(uint64_t addr);
     virtual bool remove_breakpoint(uint64_t addr);
 
     /* step: run an instruction

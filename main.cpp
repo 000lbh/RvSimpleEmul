@@ -80,7 +80,7 @@ int main(int argc, const char *argv[])
         auto msize{segment->get_memory_size()};
         auto align{segment->get_align()};
         auto start_vaddr{segment->get_virtual_address() & ~(align - 1)};
-        auto end_vaddr{(segment->get_virtual_address() + fsize + align - 1) & ~(align - 1)};
+        auto end_vaddr{(segment->get_virtual_address() + msize + align - 1) & ~(align - 1)};
         auto offset{segment->get_virtual_address() - start_vaddr};
         int perm{};
         if (segment->get_flags() & ELFIO::PF_R)

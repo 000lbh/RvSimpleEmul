@@ -83,6 +83,11 @@ std::vector<uint64_t> RvBaseCpu::get_breakpoint()
     return std::vector<uint64_t>(breakpoint.begin(), breakpoint.end());
 }
 
+bool RvBaseCpu::find_breakpoint(uint64_t addr)
+{
+    return breakpoint.find(addr) != breakpoint.end();
+}
+
 bool RvBaseCpu::remove_breakpoint(uint64_t addr)
 {
     if (breakpoint.find(addr) == breakpoint.end())
@@ -134,7 +139,7 @@ void RvSimpleCpu::step()
 
 uint64_t RvSimpleCpu::exec(uint64_t cycle, bool no_bp)
 {
-    int inst_exec{};
+    uint64_t inst_exec{};
     try {
         if (cycle == 0)
             for (;;) {
