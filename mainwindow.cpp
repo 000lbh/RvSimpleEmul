@@ -188,8 +188,8 @@ void MainWindow::reload()
     std::string parg;
     size_t arg_size{ pargs[0].length() + 1 };
     while (psin >> parg) {
-        arg_size += parg.length() + 1;
         ppargs.push_back(ARG_BASE + arg_size);
+        arg_size += parg.length() + 1;
         pargs.push_back(parg);
     }
     arg_size = (arg_size + PGSIZE - 1) & ~(PGSIZE - 1);
