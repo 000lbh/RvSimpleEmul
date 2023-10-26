@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>RvSimpleEmulator</string>
+   <string>RiscVMultiCycleEmulator</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QWidget" name="toolBarWidget" native="true">
@@ -204,7 +204,14 @@
     <addaction name="separator"/>
     <addaction name="actionAbout"/>
    </widget>
+   <widget class="QMenu" name="menuOptions">
+    <property name="title">
+     <string>Options</string>
+    </property>
+    <addaction name="actionStatistics"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuOptions"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -245,6 +252,11 @@
   <action name="actionSettings">
    <property name="text">
     <string>Settings</string>
+   </property>
+  </action>
+  <action name="actionStatistics">
+   <property name="text">
+    <string>Statistics</string>
    </property>
   </action>
  </widget>
@@ -458,6 +470,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>actionStatistics</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>showStat()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>645</x>
+     <y>440</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <signal>sigCpuPause()</signal>
@@ -472,5 +500,7 @@
   <slot>settingsPage()</slot>
   <slot>updateReg()</slot>
   <slot>memJump()</slot>
+  <slot>showStat()</slot>
+  <slot>resetStat()</slot>
  </slots>
 </ui>

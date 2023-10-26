@@ -152,7 +152,7 @@ void MainWindow::reload()
                     main_addr = {addr, size};
                 }
                 // Get gp register value
-                if (name == "__global_pointer$") {
+                if (name == "__global_pointer$" || name == "_gp") {
                     global_ptr = addr;
                 }
             }
@@ -179,7 +179,6 @@ void MainWindow::reload()
     reg.pc = main_addr.value().first + addr_base;
     reg.gp = global_ptr;
     // Pass arguments
-    // TODO: read from params
     std::string pargs_r{ setDlg->get_arguments() };
     std::vector<std::string> pargs{ *file_name };
     std::vector<uint64_t> ppargs;
@@ -207,11 +206,12 @@ void MainWindow::reload()
     reg.a1 = PARG_BASE;
     mem_segs.push_back(std::move(ptr_args));
     mem_segs.push_back(std::move(ptr_pargs));
-    cpu.reset(new RvSimpleCpu(*mem, reg));
+    cpu.reset(new RvMultiCycleCpu(*mem, reg));
     cpu->add_breakpoint(HALT_MAGIC);
     updateReg();
     updateInsts(cpu->reg.pc);
     updateMem(cpu->reg.gp);
+    resetStat();
     return;
 }
 
@@ -428,5 +428,29 @@ void MainWindow::memJump()
         return;
     }
     updateMem(result);
+}
+
+void MainWindow::showStat()
+{
+    if (!cpu)
+        return;
+    uint64_t cycleCnt = cpu->get_cycle_count();
+    double CPI = cpu->get_cpi();
+    QString message{};
+    std::string a = std::format("Cycle: {}\nCPI: {}\n", cycleCnt, CPI);
+    message += a.c_str();
+    a = "";
+    for (const auto &[key, value] : cpu->get_inst_stat()) {
+        a += std::format("  {:6s}: {}\n", key, value);
+    }
+    message += a.c_str();
+    QMessageBox::information(this, "Statistics", message);
+}
+
+void MainWindow::resetStat()
+{
+    if (!cpu)
+        return;
+    cpu->reset_stat();
 }
 

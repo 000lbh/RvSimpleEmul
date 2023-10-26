@@ -65,5 +65,10 @@ public:
     // just unmap
     bool unmap_page(uint64_t addr);
     MemWrapper operator[](uint64_t addr);
+    virtual uint64_t mem_cycle();
     ~RvMem();
+};
+
+class RvMemWithCache : public RvMem {
+    
 };

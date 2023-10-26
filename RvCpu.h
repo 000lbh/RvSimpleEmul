@@ -1,10 +1,16 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <vector>
 #include <set>
+#include <unordered_map>
+
+class RvReg;
 
 #include "RvMem.h"
+#include "RvInst.h"
+#include "RvBranchPred.hpp"
 
 constexpr const char *RVREGABINAME[32] = {
     "zero", "ra", "sp", "gp", "tp", "t0",
@@ -16,7 +22,7 @@ constexpr const char *RVREGABINAME[32] = {
 };
 
 class RvReg {
-    uint64_t reg_u[32];
+    std::array<uint64_t ,32> reg_u;
 public:
     uint64_t pc;
     uint64_t &ra;
@@ -38,6 +44,7 @@ public:
     void set(uint8_t id, uint64_t value);
     uint64_t operator[](uint8_t id) const;
     uint64_t &operator[](uint8_t id);
+    RvReg &operator=(const RvReg &other);
 };
 
 class RvBaseCpu {
@@ -71,4 +78,99 @@ public:
     RvSimpleCpu(RvMem &mem, const RvReg &reg);
     void step() override;
     uint64_t exec(uint64_t cycle = 0, bool no_bp = false) override;
+};
+
+class RvMultiCycleCpu : public RvBaseCpu {
+    uint64_t executed_cycles;
+    uint64_t executed_insts;
+    std::unordered_map<std::string, uint64_t> inst_stat;
+public:
+    RvMultiCycleCpu(RvMem &mem, const RvReg &reg);
+    void step() override;
+    uint64_t exec(uint64_t cycle = 0, bool no_bp = false) override;
+    uint64_t get_cycle_count() const;
+    double get_cpi() const;
+    const std::unordered_map<std::string, uint64_t> &get_inst_stat() const;
+    void reset_stat();
+};
+
+class RvPipelineCpu : public RvBaseCpu{
+    friend class RvBranchPred;
+
+    // Statistics information;
+    uint64_t executed_cycles;
+    uint64_t executed_insts;
+    uint64_t branch_insts;
+    uint64_t branch_miss;
+    uint64_t squashed_insts;
+    std::unordered_map<std::string, uint64_t> inst_stat;
+
+    // PC for fetching
+    uint64_t fetch_pc;
+
+    // Branch Predictor
+    RvBranchPred &predictor;
+
+    // Stages instructions
+    std::unique_ptr<RvInst> fetch_inst;
+    std::unique_ptr<RvInst> decode_inst;
+    std::unique_ptr<RvInst> exec_inst;
+    std::unique_ptr<RvInst> exec_mul_inst;
+    std::unique_ptr<RvInst> mem_inst;
+    std::unique_ptr<RvInst> wb_inst;
+
+    // Stages stall
+    uint64_t fetch_cycle;
+    uint64_t decode_cycle;
+    uint64_t exec_cycle;
+    uint64_t mem_cycle;
+
+    // Memory access info
+    std::optional<RvMemAcc> mem_acc_info;
+
+    // Stages registers
+    RvReg fetch_reg;
+    RvReg decode_reg;
+    RvReg exec_reg;
+    RvReg mem_reg;
+    RvReg wb_reg;
+
+    // Stage invalidate
+    bool fetch_invd;
+    bool decode_invd;
+    bool exec_invd;
+    bool mem_invd;
+    bool wb_invd;
+
+    // Stages operation
+    void stage_fetch();
+    void stage_decode();
+    void stage_exec();
+    void stage_mem();
+    void stage_wb();
+public:
+    struct status_t {
+        std::string fetch_inst;
+        std::string decode_inst;
+        std::string exec_inst;
+        std::string mem_inst;
+        std::string wb_inst;
+        uint64_t fetch_cycle;
+        uint64_t decode_cycle;
+        uint64_t exec_cycle;
+        uint64_t mem_cycle;
+        uint64_t wb_cycle;
+    };
+    RvPipelineCpu(RvMem &mem, const RvReg &reg, RvBranchPred &branch_pred);
+    void step() override;
+    uint64_t exec(uint64_t cycle = 0, bool no_bp = false);
+    double get_missrate() const;
+    double get_cpi() const;
+    uint64_t get_cycle_count() const;
+    uint64_t get_inst_count() const;
+    uint64_t get_branch_count() const;
+    uint64_t get_branch_miss() const;
+    const decltype(inst_stat) &get_inst_stat() const;
+    status_t get_internal_status() const;
+    void reset_stat();
 };

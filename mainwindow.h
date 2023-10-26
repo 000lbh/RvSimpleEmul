@@ -48,6 +48,8 @@ public slots:
     void cpuBreak();
     void reload();
     void memJump();
+    void showStat();
+    void resetStat();
 
 signals:
     void sigCpuPause();
@@ -62,7 +64,7 @@ private:
     std::atomic<bool> shouldStop;
     std::thread runner;
     std::atomic<uint64_t> lastExecuted;
-    std::unique_ptr<RvSimpleCpu> cpu;
+    std::unique_ptr<RvMultiCycleCpu> cpu;
     std::unique_ptr<RvMem> mem;
     std::unique_ptr<std::string> file_name;
     std::vector<std::unique_ptr<char[]>> mem_segs;

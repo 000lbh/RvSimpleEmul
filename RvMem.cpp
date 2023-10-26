@@ -63,6 +63,12 @@ RvMem::MemWrapper RvMem::operator[](uint64_t addr)
     return MemWrapper(reinterpret_cast<char *>(entry.addr) + (addr & 0xfff), entry.perm);
 }
 
+// Return last memory access time
+uint64_t RvMem::mem_cycle()
+{
+    return 1;
+}
+
 RvMem::~RvMem()
 {
     for (void *i : owned_page)
