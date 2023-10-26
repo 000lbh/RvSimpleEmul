@@ -113,7 +113,7 @@ int main(int argc, const char *argv[])
                     main_addr = {addr, size};
                 }
                 // Get gp register value
-                if (name == "__global_pointer$" || name == "_gp") {
+                if (name == "__global_pointer$") {
                     global_ptr = addr;
                 }
             }
@@ -163,7 +163,7 @@ int main(int argc, const char *argv[])
     reg.a1 = PARG_BASE;
     mem_segs.push_back(std::move(ptr_args));
     mem_segs.push_back(std::move(ptr_pargs));
-    RvSimpleCpu cpu(mem, reg);
+    RvMultiCycleCpu cpu(mem, reg);
     cpu.add_breakpoint(HALT_MAGIC);
     // Interactive section
     if (result.count("interactive")) {
@@ -201,6 +201,15 @@ int main(int argc, const char *argv[])
                     }
                     catch (const RvAccVio &) {
                         ;
+                    }
+                }
+                else if (sub_command == "stat") {
+                    std::cout << "Statistics:" << std::endl;
+                    std::cout << "  Cycle count: " << std::dec << cpu.get_cycle_count() << std::endl;
+                    std::cout << "  CPI: " << cpu.get_cpi() << std::endl;
+                    std::cout << "  Instruction count:" << std::endl;
+                    for (auto &[key, value] : cpu.get_inst_stat()) {
+                        std::cout << "    " << key << ": " << value << std::endl;
                     }
                 }
                 else {
@@ -288,5 +297,12 @@ int main(int argc, const char *argv[])
         std::cout << RVREGABINAME[i] << "=0x" << std::hex << static_cast<uint64_t>(cpu.reg[i]) << std::endl;
     }
     std::cout << "pc=0x" << std::hex << cpu.reg.pc << std::endl;
+    std::cout << "Statistics:" << std::endl;
+    std::cout << "  Cycle count: " << std::dec << cpu.get_cycle_count() << std::endl;
+    std::cout << "  CPI: " << cpu.get_cpi() << std::endl;
+    std::cout << "  Instruction count:" << std::endl;
+    for (auto &[key, value] : cpu.get_inst_stat()) {
+        std::cout << "    " << key << ": " << value << std::endl;
+    }
     return 0;
 }

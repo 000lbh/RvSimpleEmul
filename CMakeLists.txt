@@ -26,6 +26,29 @@ add_executable (RvSimpleEmul
     "RvMem.cpp"
 )
 
+add_executable (RvMultiCycleEmul
+    "main_multicycle.cpp"
+    "RvInst.h"
+    "RvInst.cpp"
+    "RvExcept.hpp"
+    "RvCpu.h"
+    "RvCpu.cpp"
+    "RvMem.h"
+    "RvMem.cpp"
+)
+
+add_executable (RvPipelineEmul
+    "main_pipeline.cpp"
+    "RvInst.h"
+    "RvInst.cpp"
+    "RvExcept.hpp"
+    "RvCpu.h"
+    "RvCpu.cpp"
+    "RvMem.h"
+    "RvMem.cpp"
+    "RvBranchPred.hpp"
+)
+
 include_directories("3rd" "3rd/elfio")
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
@@ -45,3 +68,27 @@ add_test(NAME testgcd1 COMMAND "sh" "-c" "./${PROJECT_NAME} -R --arguments=\"13 
 add_test(NAME testgcd2 COMMAND "sh" "-c" "./${PROJECT_NAME} -R --arguments=\"24 1024\" ../testcases/testgcd | grep a0=0x8")
 add_test(NAME testgcd3 COMMAND "sh" "-c" "./${PROJECT_NAME} -R --arguments=\"91 169\" ../testcases/testgcd | grep a0=0xd")
 add_test(NAME testgcd4 COMMAND "sh" "-c" "./${PROJECT_NAME} -R --arguments=\"114514 1919810\" ../testcases/testgcd | grep a0=0x2")
+
+add_test(NAME multi_testadd COMMAND "sh" "-c" "./RvMultiCycleEmul -R ../testcases/testadd | grep a0=0x2d")
+add_test(NAME multi_testbubble COMMAND "sh" "-c" "./RvMultiCycleEmul -R ../testcases/testbubble | grep a0=0x8")
+add_test(NAME multi_testmul COMMAND "sh" "-c" "./RvMultiCycleEmul -R ../testcases/testmul | grep a0=0x32")
+add_test(NAME multi_testrecur COMMAND "sh" "-c" "./RvMultiCycleEmul -R ../testcases/testrecur | grep a0=0x37")
+add_test(NAME multi_testret COMMAND "sh" "-c" "./RvMultiCycleEmul -R ../testcases/testret | grep a0=0xbeef")
+add_test(NAME multi_testarg1 COMMAND "sh" "-c" "./RvMultiCycleEmul -R --arguments=\"1024 2048\" ../testcases/testarg | grep a0=0xc00")
+add_test(NAME multi_testarg2 COMMAND "sh" "-c" "./RvMultiCycleEmul -R --arguments=\"114514 1919810\" ../testcases/testarg | grep a0=0x1f0a94")
+add_test(NAME multi_testgcd1 COMMAND "sh" "-c" "./RvMultiCycleEmul -R --arguments=\"13 19\" ../testcases/testgcd | grep a0=0x1")
+add_test(NAME multi_testgcd2 COMMAND "sh" "-c" "./RvMultiCycleEmul -R --arguments=\"24 1024\" ../testcases/testgcd | grep a0=0x8")
+add_test(NAME multi_testgcd3 COMMAND "sh" "-c" "./RvMultiCycleEmul -R --arguments=\"91 169\" ../testcases/testgcd | grep a0=0xd")
+add_test(NAME multi_testgcd4 COMMAND "sh" "-c" "./RvMultiCycleEmul -R --arguments=\"114514 1919810\" ../testcases/testgcd | grep a0=0x2")
+
+add_test(NAME pipe_testadd COMMAND "sh" "-c" "./RvPipelineEmul -R ../testcases/testadd | grep a0=0x2d")
+add_test(NAME pipe_testbubble COMMAND "sh" "-c" "./RvPipelineEmul -R ../testcases/testbubble | grep a0=0x8")
+add_test(NAME pipe_testmul COMMAND "sh" "-c" "./RvPipelineEmul -R ../testcases/testmul | grep a0=0x32")
+add_test(NAME pipe_testrecur COMMAND "sh" "-c" "./RvPipelineEmul -R ../testcases/testrecur | grep a0=0x37")
+add_test(NAME pipe_testret COMMAND "sh" "-c" "./RvPipelineEmul -R ../testcases/testret | grep a0=0xbeef")
+add_test(NAME pipe_testarg1 COMMAND "sh" "-c" "./RvPipelineEmul -R --arguments=\"1024 2048\" ../testcases/testarg | grep a0=0xc00")
+add_test(NAME pipe_testarg2 COMMAND "sh" "-c" "./RvPipelineEmul -R --arguments=\"114514 1919810\" ../testcases/testarg | grep a0=0x1f0a94")
+add_test(NAME pipe_testgcd1 COMMAND "sh" "-c" "./RvPipelineEmul -R --arguments=\"13 19\" ../testcases/testgcd | grep a0=0x1")
+add_test(NAME pipe_testgcd2 COMMAND "sh" "-c" "./RvPipelineEmul -R --arguments=\"24 1024\" ../testcases/testgcd | grep a0=0x8")
+add_test(NAME pipe_testgcd3 COMMAND "sh" "-c" "./RvPipelineEmul -R --arguments=\"91 169\" ../testcases/testgcd | grep a0=0xd")
+add_test(NAME pipe_testgcd4 COMMAND "sh" "-c" "./RvPipelineEmul -R --arguments=\"114514 1919810\" ../testcases/testgcd | grep a0=0x2")

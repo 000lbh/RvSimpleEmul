@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <format>
 #include <string>
 #include <vector>
 #include <optional>
@@ -163,7 +164,7 @@ int main(int argc, const char *argv[])
     reg.a1 = PARG_BASE;
     mem_segs.push_back(std::move(ptr_args));
     mem_segs.push_back(std::move(ptr_pargs));
-    RvSimpleCpu cpu(mem, reg);
+    RvPipelineCpu cpu(mem, reg, std::make_shared<RvStaticBranchPred<false>>());
     cpu.add_breakpoint(HALT_MAGIC);
     // Interactive section
     if (result.count("interactive")) {
@@ -181,6 +182,15 @@ int main(int argc, const char *argv[])
             }
             else if (main_command == "step" || main_command == "s") {
                 cpu.exec(1, true);
+                /////
+                std::cout << "Pipeline status:" << std::endl;
+                auto &&[f_i, d_i, e_i, m_i, w_i, f_c, d_c, e_c, m_c, w_c] { cpu.get_internal_status() };
+                std::cout << std::format("  Fetch:       {:3} cycle(s), {}", f_c, f_i) << std::endl;
+                std::cout << std::format("  Decode:      {:3} cycle(s), {}", d_c, d_i) << std::endl;
+                std::cout << std::format("  Execute:     {:3} cycle(s), {}", e_c, e_i) << std::endl;
+                std::cout << std::format("  Memory:      {:3} cycle(s), {}", m_c, m_i) << std::endl;
+                std::cout << std::format("  Write-back:  {:3} cycle(s), {}", w_c, w_i) << std::endl;
+                /////
             }
             else if (main_command == "info") {
                 std::string sub_command;
@@ -202,6 +212,24 @@ int main(int argc, const char *argv[])
                     catch (const RvAccVio &) {
                         ;
                     }
+                }
+                else if (sub_command == "stat") {
+                    std::cout << "Statistics:" << std::endl;
+                    std::cout << "  Cycle count: " << std::dec << cpu.get_cycle_count() << std::endl;
+                    std::cout << "  CPI: " << cpu.get_cpi() << std::endl;
+                    std::cout << "  Instruction count:" << std::endl;
+                    for (auto &[key, value] : cpu.get_inst_stat()) {
+                        std::cout << "    " << key << ": " << value << std::endl;
+                    }
+                }
+                else if (sub_command == "pipeline") {
+                    std::cout << "Pipeline status:" << std::endl;
+                    auto &&[f_i, d_i, e_i, m_i, w_i, f_c, d_c, e_c, m_c, w_c] { cpu.get_internal_status() };
+                    std::cout << std::format("  Fetch:       {:3} cycle(s), {}", f_c, f_i) << std::endl;
+                    std::cout << std::format("  Decode:      {:3} cycle(s), {}", d_c, d_i) << std::endl;
+                    std::cout << std::format("  Execute:     {:3} cycle(s), {}", e_c, e_i) << std::endl;
+                    std::cout << std::format("  Memory:      {:3} cycle(s), {}", m_c, m_i) << std::endl;
+                    std::cout << std::format("  Write-back:  {:3} cycle(s), {}", w_c, w_i) << std::endl;
                 }
                 else {
                     std::cout << "Provide more arguments." << std::endl;
@@ -288,5 +316,24 @@ int main(int argc, const char *argv[])
         std::cout << RVREGABINAME[i] << "=0x" << std::hex << static_cast<uint64_t>(cpu.reg[i]) << std::endl;
     }
     std::cout << "pc=0x" << std::hex << cpu.reg.pc << std::endl;
+    std::cout << "Statistics:" << std::endl;
+    std::cout << "  Cycle count: " << std::dec << cpu.get_cycle_count() << std::endl;
+    std::cout << "  CPI: " << cpu.get_cpi() << std::endl;
+    std::cout << "  Branch: " << cpu.get_branch_count() << std::endl;
+    std::cout << "  Branch miss: " << cpu.get_branch_miss() << std::endl;
+    std::cout << "  Miss rate: " << cpu.get_missrate() << std::endl;
+    std::cout << "  Instruction count:" << std::endl;
+    for (auto &[key, value] : cpu.get_inst_stat()) {
+        std::cout << "    " << key << ": " << value << std::endl;
+    }
+
+    std::cout << "Pipeline status:" << std::endl;
+    auto &&[f_i, d_i, e_i, m_i, w_i, f_c, d_c, e_c, m_c, w_c] { cpu.get_internal_status() };
+    std::cout << std::format("  Fetch:       {:3} cycle(s), {}", f_c, f_i) << std::endl;
+    std::cout << std::format("  Decode:      {:3} cycle(s), {}", d_c, d_i) << std::endl;
+    std::cout << std::format("  Execute:     {:3} cycle(s), {}", e_c, e_i) << std::endl;
+    std::cout << std::format("  Memory:      {:3} cycle(s), {}", m_c, m_i) << std::endl;
+    std::cout << std::format("  Write-back:  {:3} cycle(s), {}", w_c, w_i) << std::endl;
+
     return 0;
 }

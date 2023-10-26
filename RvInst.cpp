@@ -6,6 +6,8 @@
 
 #include "RvExcept.hpp"
 
+using namespace std::string_literals;
+
 constexpr uint8_t get_opcode(uint32_t inst) {
     return inst & 0b1111111;
 }
@@ -78,13 +80,140 @@ RvInst *RvInst::decode(uint32_t inst) {
         // UJ-type jump far
         return new RvUJInst(inst);
     default:
-        throw RvIllIns(0, "Invalid Opcode");
+        return new RvIllFInst{};
     }
 }
 
 void RvInst::mem(RvReg &reg, RvMem &mem, const RvMemAcc &info) const
 {
     return;
+}
+
+RvInst::hazard_t RvInst::data_hazard(RvInst *subsequent_inst)
+{
+    if (!subsequent_inst)
+        return H_NOHAZARD;
+    /*
+    RvReg tmp_reg{};
+    std::optional<RvMemAcc> this_inst;
+    std::optional<RvMemAcc> subs_inst;
+    try {
+        this->exec(tmp_reg);
+    }
+    catch (const RvMemAcc &meminfo) {
+        this_inst = meminfo;
+    }
+    catch (const RvCtrlFlowJmp &) {
+        ;
+    }
+    catch (const RvException &) {
+        return H_NOHAZARD;
+    }
+    try {
+        subsequent_inst->exec(tmp_reg);
+    }
+    catch (const RvMemAcc &meminfo) {
+        subs_inst = meminfo;
+    }
+    catch (const RvCtrlFlowJmp &) {
+        ;
+    }
+    catch (const RvException &) {
+        return H_NOHAZARD;
+    }
+    if (this_inst && subs_inst && this_inst->target_addr == subs_inst->target_addr) {
+        if (this_inst->rw == RvMemAcc::WRITE && subs_inst->rw == RvMemAcc::READ) {
+            return H_RAW;
+        }
+        else if (this_inst->rw == RvMemAcc::READ && subs_inst->rw == RvMemAcc::WRITE) {
+            return H_WAR;
+        }
+        else if (this_inst->rw == RvMemAcc::WRITE && subs_inst->rw == RvMemAcc::WRITE) {
+            return H_WAW;
+        }
+    }
+    */
+
+    std::optional<uint8_t> this_rs1;
+    std::optional<uint8_t> this_rs2;
+    std::optional<uint8_t> this_rd;
+    std::optional<uint8_t> subs_rs1;
+    std::optional<uint8_t> subs_rs2;
+    std::optional<uint8_t> subs_rd;
+
+    // Get this regs
+    if (auto ptr{ dynamic_cast<RvRInst *>(this) }) {
+        this_rs1 = ptr->rs1;
+        this_rs2 = ptr->rs2;
+        if (ptr->rd)
+            this_rd = ptr->rd;
+    }
+    else if (auto ptr{ dynamic_cast<RvIInst *>(this) }) {
+        this_rs1 = ptr->rs1;
+        if (ptr->rd)
+            this_rd = ptr->rd;
+    }
+    else if (auto ptr{ dynamic_cast<RvSInst *>(this) }) {
+        this_rs1 = ptr->rs1;
+        this_rs2 = ptr->rs2;
+    }
+    else if (auto ptr{ dynamic_cast<RvSBInst *>(this) }) {
+        this_rs1 = ptr->rs1;
+        this_rs2 = ptr->rs2;
+    }
+    else if (auto ptr{ dynamic_cast<RvUInst *>(this) }) {
+        if (ptr->rd)
+            this_rd = ptr->rd;
+    }
+    else if (auto ptr{ dynamic_cast<RvUJInst *>(this) }) {
+        if (ptr->rd)
+            this_rd = ptr->rd;
+    }
+
+    // Get subsequent inst regs
+    if (auto ptr{ dynamic_cast<RvRInst *>(subsequent_inst) }) {
+        subs_rs1 = ptr->rs1;
+        subs_rs2 = ptr->rs2;
+        if (ptr->rd)
+            subs_rd = ptr->rd;
+    }
+    else if (auto ptr{ dynamic_cast<RvIInst *>(subsequent_inst) }) {
+        subs_rs1 = ptr->rs1;
+        if (ptr->rd)
+            subs_rd = ptr->rd;
+    }
+    else if (auto ptr{ dynamic_cast<RvSInst *>(subsequent_inst) }) {
+        subs_rs1 = ptr->rs1;
+        subs_rs2 = ptr->rs2;
+    }
+    else if (auto ptr{ dynamic_cast<RvSBInst *>(subsequent_inst) }) {
+        subs_rs1 = ptr->rs1;
+        subs_rs2 = ptr->rs2;
+    }
+    else if (auto ptr{ dynamic_cast<RvUInst *>(subsequent_inst) }) {
+        if (ptr->rd)
+            subs_rd = ptr->rd;
+    }
+    else if (auto ptr{ dynamic_cast<RvUJInst *>(subsequent_inst) }) {
+        if (ptr->rd)
+            subs_rd = ptr->rd;
+    }
+    if (this_rd && (this_rd == subs_rs1 || this_rd == subs_rs2))
+        return H_RAW;
+    else if ((this_rs1 && this_rs1 == subs_rd) || (this_rs2 && this_rs2 == subs_rd))
+        return H_WAR;
+    else if (this_rd && this_rd == subs_rd)
+        return H_WAW;
+    return H_NOHAZARD;
+}
+
+bool RvInst::div_rem_ok(RvInst *subsequent_inst) {
+    return false;
+}
+
+uint64_t RvInst::exec_cycle()
+{
+    return 1;
 }
 
 #pragma region RvRInst
@@ -135,6 +264,56 @@ std::unordered_map<uint8_t, std::unordered_map<uint8_t, std::unordered_map<uint8
         } },
         {0x06, {
             { 0x01, "remw" }
+        } }
+    } }
+};
+
+std::unordered_map<uint8_t, std::unordered_map<uint8_t, std::unordered_map<uint8_t, uint64_t>>> RvRInstCycleDict{
+    { 0x33, {
+        { 0x00, {
+            { 0x00, 1 },
+            { 0x01, 2 },
+            { 0x20, 1 }
+        } },
+        { 0x01, {
+            { 0x00, 1 },
+            { 0x01, 2 }
+        } },
+        { 0x02, {
+            { 0x00, 1 },
+        } },
+        { 0x03, {
+            { 0x00, 1 },
+        } },
+        { 0x04, {
+            { 0x00, 1 },
+            { 0x01, 40 }
+        } },
+        { 0x05, {
+            { 0x00, 1 },
+            { 0x01, 40 },
+            { 0x20, 1 }
+        } },
+        { 0x06, {
+            { 0x00, 1 },
+            { 0x01, 40 },
+        } },
+        { 0x07, {
+            { 0x00, 1 },
+            { 0x01, 40 }
+        } }
+    } },
+    { 0x3b, {
+        {0x00, {
+            { 0x00, 1 },
+            { 0x01, 1 },
+            { 0x20, 1 }
+        } },
+        {0x04, {
+            { 0x01, 40 }
+        } },
+        {0x06, {
+            { 0x01, 40 }
         } }
     } }
 };
@@ -229,14 +408,18 @@ RvRInst::RvRInst(uint32_t inst)
 }
 
 std::string RvRInst::name() const {
-    std::string result;
+    return inst_name() + " " + RVREGABINAME[rd] + ", " + RVREGABINAME[rs1] + ", " + RVREGABINAME[rs2];
+}
+
+std::string RvRInst::inst_name() const {
+    std::string result{};
     try {
         result = RvRInstNameDict.at(opcode).at(funct3).at(funct7);
     }
     catch (std::out_of_range) {
-        result = "undefined";
+        result = "undefined"s;
     }
-    return result + " " + RVREGABINAME[rd] + ", " + RVREGABINAME[rs1] + ", " + RVREGABINAME[rs2];
+    return std::move(result);
 }
 
 void RvRInst::exec(RvReg &reg) const try {
@@ -246,9 +429,27 @@ catch (std::out_of_range) {
     throw RvIllIns(reg.pc);
 }
 
+void RvRInst::write_back(RvReg &src, RvReg &dest) const
+{
+    dest[rd] = src[rd];
+}
+
 RvInst *RvRInst::copy() const
 {
     return new RvRInst{ *this };
+}
+
+bool RvRInst::div_rem_ok(RvInst *subsequent_inst)
+{
+    if ((this->inst_name() != "div"s || subsequent_inst->inst_name() != "rem"s) && (this->inst_name() != "divu"s || subsequent_inst->inst_name() != "remu"s))
+        return false;
+    auto other{ dynamic_cast<RvRInst *>(subsequent_inst) };
+    return this->rs1 == other->rs1 && this->rs2 == other->rs2 && this->rd != other->rs1 && this->rd != other->rs2;
+}
+
+uint64_t RvRInst::exec_cycle()
+{
+    return RvRInstCycleDict.at(opcode).at(funct3).at(funct7);
 }
 
 #pragma endregion
@@ -360,7 +561,7 @@ RvIInst::RvIInst(uint32_t inst)
 {
     opcode = get_opcode(inst);
     try {
-        RvIInstWithF7NameDict.at(opcode).at(funct3);
+        void(RvIInstWithF7NameDict.at(opcode).at(funct3));
         funct7 = get_funct7(inst) & 0b1111110;
         imm = get_i_imm(inst) & 0b111111;
     }
@@ -373,7 +574,12 @@ RvIInst::RvIInst(uint32_t inst)
 
 std::string RvIInst::name() const
 {
-    std::string result;
+    return inst_name() + " " + RVREGABINAME[rd] + ", " + RVREGABINAME[rs1] + ", " + std::to_string(imm);
+}
+
+std::string RvIInst::inst_name() const
+{
+    std::string result{};
     try {
         if (funct7) {
             result = RvIInstWithF7NameDict.at(opcode).at(funct3).at(funct7.value());
@@ -385,7 +591,7 @@ std::string RvIInst::name() const
     catch (std::out_of_range) {
         result = "undefined";
     }
-    return result + " " + RVREGABINAME[rd] + ", " + RVREGABINAME[rs1] + ", " + std::to_string(imm);
+    return std::move(result);
 }
 
 void RvIInst::exec(RvReg &reg) const try {
@@ -431,6 +637,11 @@ void RvIInst::mem(RvReg &reg, RvMem &mem, const RvMemAcc &info) const {
     }
 }
 
+void RvIInst::write_back(RvReg &src, RvReg &dest) const
+{
+    dest[rd] = src[rd];
+}
+
 RvInst *RvIInst::copy() const
 {
     return new RvIInst{ *this };
@@ -452,24 +663,23 @@ RvSInst::RvSInst(uint32_t inst)
 
 std::string RvSInst::name() const
 {
-    std::string result{};
+    return inst_name() + " " + RVREGABINAME[rs2] + ", " + std::to_string(imm) + "(" + RVREGABINAME[rs1] + ")";
+}
+
+std::string RvSInst::inst_name() const
+{
     switch (funct3) {
     case 0x00:
-        result = "sb";
-        break;
+        return "sb"s;
     case 0x01:
-        result = "sh";
-        break;
+        return "sh"s;
     case 0x02:
-        result = "sw";
-        break;
+        return "sw"s;
     case 0x03:
-        result = "sd";
-        break;
+        return "sd"s;
     default:
-        result = "undefined";
+        return "undefined"s;
     }
-    return result + " " + RVREGABINAME[rs2] + ", " + std::to_string(imm) + "(" + RVREGABINAME[rs1] + ")";
 }
 
 void RvSInst::exec(RvReg &reg) const
@@ -516,6 +726,11 @@ void RvSInst::mem(RvReg &reg, RvMem &mem, const RvMemAcc &info) const
     }
 }
 
+void RvSInst::write_back(RvReg &src, RvReg &dest) const
+{
+    return;
+}
+
 RvInst *RvSInst::copy() const
 {
     return new RvSInst{ *this };
@@ -559,14 +774,19 @@ RvSBInst::RvSBInst(uint32_t inst)
 
 std::string RvSBInst::name() const
 {
+    return inst_name() + " " + RVREGABINAME[rs1] + ", " + RVREGABINAME[rs2] + ", " + std::to_string(imm);
+}
+
+std::string RvSBInst::inst_name() const
+{
     std::string result{};
     try {
         result = RvSBInstNameDict.at(opcode).at(funct3);
     }
     catch (std::out_of_range) {
-        result = "undefined";
+        result = "undefined"s;
     }
-    return result + " " + RVREGABINAME[rs1] + ", " + RVREGABINAME[rs2] + ", " + std::to_string(imm);
+    return std::move(result);
 }
 
 void RvSBInst::exec(RvReg &reg) const try {
@@ -576,9 +796,19 @@ catch (std::out_of_range) {
     throw RvIllIns(reg.pc);
 }
 
+void RvSBInst::write_back(RvReg &src, RvReg &dest) const
+{
+    return;
+}
+
 RvInst *RvSBInst::copy() const
 {
     return new RvSBInst{ *this };
+}
+
+uint64_t RvSBInst::get_target(uint64_t pc) const
+{
+    return pc + imm;
 }
 
 #pragma endregion
@@ -595,18 +825,23 @@ RvUInst::RvUInst(uint32_t inst)
 
 std::string RvUInst::name() const
 {
+    return inst_name() + " " + RVREGABINAME[rd] + ", " + std::to_string(imm);
+}
+
+std::string RvUInst::inst_name() const
+{
     std::string result{};
     switch (opcode) {
     case 0x17:
         result = "auipc";
         break;
     case 0x37:
-        result = "lui";
+        result = "lui"s;
         break;
     default:
-        result = "undefined";
+        result = "undefined"s;
     }
-    return result + " " + RVREGABINAME[rd] + ", " + std::to_string(imm);
+    return std::move(result);
 }
 
 void RvUInst::exec(RvReg &reg) const
@@ -621,6 +856,11 @@ void RvUInst::exec(RvReg &reg) const
     default:
         throw RvIllIns(reg.pc);
     }
+}
+
+void RvUInst::write_back(RvReg &src, RvReg &dest) const
+{
+    dest[rd] = src[rd];
 }
 
 RvInst *RvUInst::copy() const
@@ -648,6 +888,11 @@ std::string RvUJInst::name() const
         return "undefined";
 }
 
+std::string RvUJInst::inst_name() const
+{
+    return opcode == 0x6f ? "jal"s : "undefined"s;
+}
+
 void RvUJInst::exec(RvReg &reg) const
 {
     if (opcode == 0x6f) {
@@ -658,9 +903,67 @@ void RvUJInst::exec(RvReg &reg) const
         throw RvIllIns(reg.pc);
 }
 
+void RvUJInst::write_back(RvReg &src, RvReg &dest) const
+{
+    dest[rd] = src[rd];
+}
+
 RvInst *RvUJInst::copy() const
 {
     return new RvUJInst{ *this };
+}
+
+#pragma endregion
+
+void RvFaultInst::exec(RvReg &reg) const
+{
+    throw RvIllIns(0);
+}
+
+void RvFaultInst::mem(RvReg &reg, RvMem &mem, const RvMemAcc &info) const
+{
+    throw RvIllIns(0);
+}
+
+void RvFaultInst::write_back(RvReg &, RvReg &) const
+{
+    throw RvHalt{};
+}
+
+#pragma region RvIllFInst
+
+std::string RvIllFInst::name() const
+{
+    return "Undefined opcode"s;
+}
+
+std::string RvIllFInst::inst_name() const
+{
+    return "Undefined opcode"s;
+}
+
+RvInst *RvIllFInst::copy() const
+{
+    return new RvIllFInst{};
+}
+
+#pragma endregion
+
+#pragma region RvMemFInst
+
+std::string RvMemFInst::name() const
+{
+    return "Memory Access Violation"s;
+}
+
+std::string RvMemFInst::inst_name() const
+{
+    return "Memory Access violation"s;
+}
+
+RvInst *RvMemFInst::copy() const
+{
+    return new RvMemFInst{};
 }
 
 #pragma endregion
