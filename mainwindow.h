@@ -14,6 +14,7 @@
 #include "RvInst.h"
 #include "RvMem.h"
 #include "RvExcept.hpp"
+#include "RvBranchPred.hpp"
 
 #include "settingsdialog.h"
 #include "aboutdialog.h"
@@ -41,6 +42,7 @@ public slots:
     void updateInsts(uint64_t addr);
     void updateMem();
     void updateMem(uint64_t addr);
+    void updatePipeline();
     void cpuRun();
     void cpuPause();
     void cpuStep();
@@ -48,6 +50,8 @@ public slots:
     void cpuBreak();
     void reload();
     void memJump();
+    void showStat();
+    void resetStat();
 
 signals:
     void sigCpuPause();
@@ -62,8 +66,9 @@ private:
     std::atomic<bool> shouldStop;
     std::thread runner;
     std::atomic<uint64_t> lastExecuted;
-    std::unique_ptr<RvSimpleCpu> cpu;
+    std::unique_ptr<RvPipelineCpu> cpu;
     std::unique_ptr<RvMem> mem;
+    std::shared_ptr<RvBranchPred> branch_predictor;
     std::unique_ptr<std::string> file_name;
     std::vector<std::unique_ptr<char[]>> mem_segs;
     uint64_t last_mem_addr;

@@ -18,6 +18,11 @@ const std::string &SettingsDialog::get_arguments()
     return arguments;
 }
 
+int SettingsDialog::get_branch_predictor()
+{
+    return ui->comboBox->currentIndex();
+}
+
 void SettingsDialog::accept()
 {
     arguments = ui->argsEdit->text().toStdString();

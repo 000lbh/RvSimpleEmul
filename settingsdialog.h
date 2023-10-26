@@ -17,6 +17,7 @@ public:
     explicit SettingsDialog(QWidget *parent = nullptr);
     ~SettingsDialog();
     const std::string &get_arguments();
+    int get_branch_predictor();
 
 public slots:
     void accept() override;

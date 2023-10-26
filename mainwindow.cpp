@@ -41,6 +41,7 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
     , cpu{}
     , mem{}
+    , branch_predictor{new RvStaticBranchPred<false>}
     , last_mem_addr{}
     , setDlg{new SettingsDialog(this)}
     , licDlg{new LicenseDialog(this)}
@@ -152,7 +153,7 @@ void MainWindow::reload()
                     main_addr = {addr, size};
                 }
                 // Get gp register value
-                if (name == "__global_pointer$") {
+                if (name == "__global_pointer$" || name == "_gp") {
                     global_ptr = addr;
                 }
             }
@@ -179,7 +180,6 @@ void MainWindow::reload()
     reg.pc = main_addr.value().first + addr_base;
     reg.gp = global_ptr;
     // Pass arguments
-    // TODO: read from params
     std::string pargs_r{ setDlg->get_arguments() };
     std::vector<std::string> pargs{ *file_name };
     std::vector<uint64_t> ppargs;
@@ -207,11 +207,40 @@ void MainWindow::reload()
     reg.a1 = PARG_BASE;
     mem_segs.push_back(std::move(ptr_args));
     mem_segs.push_back(std::move(ptr_pargs));
-    cpu.reset(new RvSimpleCpu(*mem, reg));
+    switch (setDlg->get_branch_predictor()) {
+    case 0:
+        branch_predictor.reset(new RvStaticBranchPred<false>);
+        break;
+    case 1:
+        branch_predictor.reset(new RvStaticBranchPred<true>);
+        break;
+    case 2:
+        branch_predictor.reset(new RvStaticBTFNTBranchPred);
+        break;
+    case 3:
+        branch_predictor.reset(new RvSatCtrPred<2>(8));
+        break;
+    case 4:
+        branch_predictor.reset(new RvSatCtrPred<2>(12));
+        break;
+    case 5:
+        branch_predictor.reset(new RvSatCtrPred<3>(8));
+        break;
+    case 6:
+        branch_predictor.reset(new RvSatCtrPred<3>(12));
+        break;
+    default:
+        branch_predictor.reset(new RvStaticBranchPred<false>);
+        break;
+    }
+
+    cpu.reset(new RvPipelineCpu(*mem, reg, branch_predictor));
     cpu->add_breakpoint(HALT_MAGIC);
     updateReg();
     updateInsts(cpu->reg.pc);
     updateMem(cpu->reg.gp);
+    updatePipeline();
+    resetStat();
     return;
 }
 
@@ -277,7 +306,7 @@ void MainWindow::cpuPause()
     runTimer.stop();
     shouldStop = true;
     runner.join();
-    ui->statusbar->showMessage(QString::asprintf(tr("Executed %d instructions.").toStdString().c_str(), static_cast<uint64_t>(lastExecuted)));
+    ui->statusbar->showMessage(QString::asprintf(tr("Executed %d cycles.").toStdString().c_str(), static_cast<uint64_t>(lastExecuted)));
     shouldStop = false;
 
     ui->stepButton->setEnabled(true);
@@ -288,6 +317,7 @@ void MainWindow::cpuPause()
     updateReg();
     updateInsts();
     updateMem();
+    updatePipeline();
 }
 
 void MainWindow::cpuBreak()
@@ -312,6 +342,7 @@ void MainWindow::cpuStep()
     updateReg();
     updateInsts();
     updateMem();
+    updatePipeline();
 }
 
 void MainWindow::cpuReload()
@@ -335,10 +366,10 @@ void MainWindow::updateReg()
 {
     ui->regListWidget->clear();
     if (ui->hexDisplayCheckBox->checkState() == Qt::Checked) {
-        ui->regListWidget->addItem(QString(std::format("pc={:#016x}", cpu->reg.pc).c_str()));
+        ui->regListWidget->addItem(QString(std::format("fetch_pc={:#016x}", cpu->get_fetch_pc()).c_str()));
     }
     else {
-        ui->regListWidget->addItem(QString(std::format("pc={}", cpu->reg.pc).c_str()));
+        ui->regListWidget->addItem(QString(std::format("fetch_pc={}", cpu->get_fetch_pc()).c_str()));
     }
     for (int i{}; i < 32; i++) {
         if (ui->hexDisplayCheckBox->checkState() == Qt::Checked) {
@@ -353,7 +384,7 @@ void MainWindow::updateReg()
 void MainWindow::updateInsts()
 {
     ui->instListWidget->clear();
-    for (auto i{cpu->reg.pc - 16}; i < cpu->reg.pc + 32; i += 4) {
+    for (auto i{cpu->get_fetch_pc() - 16}; i < cpu->get_fetch_pc() + 32; i += 4) {
         std::string disas{};
         try {
             disas = std::unique_ptr<RvInst>(RvInst::decode(cpu->mem.fetch(i)))->name();
@@ -368,7 +399,7 @@ void MainWindow::updateInsts()
             disas = "PC not aligned";
         }
 
-        ui->instListWidget->addItem(new InstWidgetItem(disas, i, i == cpu->reg.pc, cpu->find_breakpoint(i)));
+        ui->instListWidget->addItem(new InstWidgetItem(disas, i, i == cpu->get_fetch_pc(), cpu->find_breakpoint(i)));
     }
 }
 
@@ -419,6 +450,22 @@ void MainWindow::updateMem(uint64_t addr)
     return;
 }
 
+void MainWindow::updatePipeline()
+{
+    auto [f_i, d_i, e_i, m_i, w_i, f_c, d_c, e_c, m_c, w_c] = cpu->get_internal_status();
+    ui->fetchCycle->setText(QString::number(f_c));
+    ui->decodeCycle->setText(QString::number(d_c));
+    ui->execCycle->setText(QString::number(e_c));
+    ui->memCycle->setText(QString::number(m_c));
+    ui->wbCycle->setText(QString::number(w_c));
+    ui->fetchInst->setText(f_i.c_str());
+    ui->decodeInst->setText(d_i.c_str());
+    ui->execInst->setText(e_i.c_str());
+    ui->memInst->setText(m_i.c_str());
+    ui->wbInst->setText(w_i.c_str());
+    return;
+}
+
 void MainWindow::memJump()
 {
     bool ok;
@@ -428,5 +475,35 @@ void MainWindow::memJump()
         return;
     }
     updateMem(result);
+}
+
+void MainWindow::showStat()
+{
+    if (!cpu)
+        return;
+    uint64_t cycleCnt = cpu->get_cycle_count();
+    uint64_t instCnt = cpu->get_inst_count();
+    double CPI = cpu->get_cpi();
+    uint64_t branchCnt = cpu->get_branch_count();
+    uint64_t missCnt = cpu->get_branch_miss();
+    double missRate = cpu->get_missrate();
+    uint64_t squashedCnt = cpu->get_squashed_inst_count();
+    uint64_t rawStallCnt = cpu->get_raw_stall_count();
+    QString message{};
+    std::string a = std::format("Cycle: {}\nInstructions: {}\nCPI: {}\nBranch: {}\nMiss: {}\nMissRate: {}\nSquashed: {}\nData hazard stall: {}\n", cycleCnt, instCnt, CPI, branchCnt, missCnt, missRate, squashedCnt, rawStallCnt);
+    message += a.c_str();
+    a = "Instructions:\n";
+    for (const auto &[key, value] : cpu->get_inst_stat()) {
+        a += std::format("  {:6s}: {}\n", key, value);
+    }
+    message += a.c_str();
+    QMessageBox::information(this, "Statistics", message);
+}
+
+void MainWindow::resetStat()
+{
+    if (!cpu)
+        return;
+    cpu->reset_stat();
 }
 

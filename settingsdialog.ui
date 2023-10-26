@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Settings</string>
   </property>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
@@ -48,6 +48,55 @@
     </item>
     <item row="0" column="1">
      <widget class="QLineEdit" name="argsEdit"/>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>Predictor:</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QComboBox" name="comboBox">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <item>
+       <property name="text">
+        <string>Static, always not taken</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Static, always taken</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Static, BTFNT</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Saturated Counter, 2bit, 8bit</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Saturated Counter, 2bit, 12bit</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Saturated Counter, 3bit, 8bit</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>Saturated Counter, 3bit, 12bit</string>
+       </property>
+      </item>
+     </widget>
     </item>
    </layout>
   </widget>
